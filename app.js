@@ -5,6 +5,7 @@
 var io = require('socket.io')(process.env.PORT || 3000);
 
 var express = require('express')
+var app = express()
 
 
 // Server Initialization Log Message
