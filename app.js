@@ -25,20 +25,33 @@ io.on('connection', function(socket){
   console.log('User connected.');
 
 
-  // New User Broadcast Message Example
-  socket.broadcast.emit('A New User Joined!')
-  console.log('Message Broadcast: A New User Joined!')
-
-
   // User Joins Game
-  socket.on('say hi', function(data) {
-    console.log('they said hi.');
+  socket.on('joinGame', function(data) {
+    // log to server console
+    console.log('Log: A User has joined game.');
+
+    // broadcast message to all clients
+    socket.broadcast.emit('Broadcast: A User has joined game.')
+  });
+
+
+  // User Makes Move
+  socket.on('makeMove', function(data) {
+    console.log('');
+
+  });
+
+
+  // User Disproves Suggestion
+  socket.on('disproveSuggestion', function(data) {
+    console.log('');
+
   });
 
 
   // User Quits Game
   socket.on('quitGame', function(data) {
-    console.log();
+    console.log('');
   });
 
 });
