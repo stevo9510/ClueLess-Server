@@ -52,6 +52,13 @@ io.on('connection', function(socket){
   // User Quits Game
   socket.on('quitGame', function(data) {
     console.log('');
+
+  });
+
+  // User Disconencts
+  socket.on('disconnect', function(data) {
+    console.log('A user disconencted.');
+
   });
 
 });
