@@ -95,6 +95,16 @@ LocEnum =
     BallKitch : 21
 }
 
+MoveEnum =
+{
+	MoveToHallway : 1,
+	TakeSecretPassageAndSuggest : 2,
+	MoveToRoomAndSuggest : 3, 
+	StayInRoomAndSuggest : 4,
+	MakeAnAccusation : 5,
+	EndTurn : 6
+}
+
 // Setup all the playerDetails and add to this dictionary for referencing
 var playerDetailsDictionary = {}
 
@@ -266,11 +276,11 @@ locationDetailsDictionary[LocEnum.BallKitch] =
 
 
 // Declare gameplay variables that are stored in memory.  "Our DAO layer"
-var PlayerLocations = []; // Will Store an Array of {PlayerID, LocationID} objects
+var playerLocations = []; // Will Store an Array of {PlayerID, LocationID} objects
 var caseFile; // should contain a playerID, weaponID, and roomID
-var CurrentTurnPlayerID; 
-var CurrentProveTurnPlayerID;  
-var CurrentSuggestionCards;  
+var currentTurnPlayerID = 0; 
+var currentProveTurnPlayerID = 0;  
+var currentSuggestionCards;
 var playerSockets = {};  // a dictionary of PlayerIDs (the key) to Socket.IO sockets.  
 
 
@@ -403,18 +413,141 @@ function CopyFromArrayToAnother(source, target, offset)
 function NextTurn()
 {
 	// update to next turn
-	if(CurrentTurnPlayerID > 0)
+	do
 	{
-		CurrentTurnPlayerID = (CurrentTurnPlayerID % 6) + 1;
+		currentTurnPlayerID = (currentTurnPlayerID % 6) + 1;
+		// keep looping if player until player is found that is not eliminated
+	}while(playerDetailsDictionary[currentTurnPlayerID].isEliminated == true);
+
+		
+	// build move options for player
+	
+	var playerMoveOptions = [];
+	
+	// check where player is currently located
+	var currentPlayerLocationID = GetPlayerCurrentLocationID(currentTurnPlayerID);
+	
+	var currPlayerTurnDetail = playerDetailsDictionary[currentTurnPlayerID];
+		
+	// case 1: player has not moved yet; allow them to move to default move location
+	if(currentPlayerLocationID == 0)
+	{
+		CreateMoveOptionAndPush(MoveEnum.MoveToHallway, currPlayerTurnDetail.defaultStartLocation, playerMoveOptions);
 	}
-	else // start of game
-	{
-		CurrentTurnPlayerID = PlayerEnum.Scarlet;
+	else
+	{		
+		var currLocDetail = locationDetailsDictionary[currentPlayerLocationID];
+		var currLocEdges = currLocDetail.edges;
+		var currLocIsRoom = currLocDetail.isRoom;
+		
+		// loop through all bordering locations
+		for(index = 0; index < currLocEdges.length; index++)
+		{
+			var edgeLocID = currLocEdges[index];
+			var edgeDetail = locationDetailsDictionary[edgeLocID];
+			
+			// if bordering location is a room
+			if(edgeDetail.isRoom)
+			{
+				var roomMoveOptionEnum;
+				// Case 2: if current location is a room (and bordering location is a room), then this must be a secret passage way
+				if(currLocDetail.isRoom)
+				{
+					roomMoveOptionEnum = MoveEnum.TakeSecretPassageAndSuggest;
+				}
+				// Case 3: if current location is a hallway, and bordering location is a room, then this is simply a move to room and suggest
+				else
+				{
+					roomMoveOptionEnum = MoveEnum.MoveToRoomAndSuggest;
+				}
+				CreateMoveOptionAndPush(roomMoveOptionEnum, edgeLocID, playerMoveOptions);
+			}
+			// if bordering location is a hallway
+			else
+			{
+				// check if hallway is empty
+				var playersAtLocation = GetPlayerIDsAtCurrentLocation(edgeLocID);
+				if(playersAtLocation.length == 0)
+				{
+					// Case 4: only allow move if hallway is empty
+					CreateMoveOptionAndPush(MoveEnum.MoveToHallway, edgeLocID, playerMoveOptions);
+				}
+			}
+		}	
+		
+		// Case 5: If player was moved to current location via suggest, give them the option to stay in the room
+		if(currPlayerTurnDetail.wasSuggestedAndMovedLastTurn == true)
+		{
+			CreateMoveOptionAndPush(MoveEnum.StayInRoomAndSuggest, currentPlayerLocationID, playerMoveOptions);
+			// turn this off now
+			currPlayerTurnDetail.wasSuggestedAndMovedLastTurn = false; 
+		}
 	}
 	
+	// always give the player the option to make an accusation
+	CreateMoveOptionAndPush(MoveEnum.MakeAnAccusation, 0, playerMoveOptions);
+
+	// at this point, if only one move option has been added (i.e. the accusation move) then the user is trapped is has no other moves to make.
+	// give them the option to end turn	
+	if(playerMoveOptions.length == 1)
+	{
+		CreateMoveOptionAndPush(MoveEnum.EndTurn, 0, playerMoveOptions);
+	}
+		
+	// notify all clients that player turn has changed
+	io.sockets.emit('PlayerTurnChanged', { playerID : currentTurnPlayerID });
 	
+	// notify current player at turn of their move options
+	playerSockets[currentTurnPlayerID].emit('MoveOptions', { moveOptions : playerMoveOptions });
+	
+	// wait for client response now to make a move
 }
 
+function CreateMoveOptionAndPush(mID, locID, options)
+{
+	var moveOption = { moveID : mID, locationID : locId};
+	options.push(moveOption);
+}
+
+function GetPlayerCurrentLocationID(pID)
+{
+	for(index = 0; index < playerLocations.length; index++)
+	{
+		var playerLoc = playerLocations[index];
+		if(playerLoc.playerID == pID)
+		{
+			return playerLoc.locationID;
+		}
+	}
+	return 0;
+}
+
+function GetPlayerIDsAtCurrentLocation(locID)
+{
+	var playerIDs = [];
+	for(index = 0; index < playerLocations.length; index++)
+	{
+		var playerLoc = playerLocations[index];
+		if(playerLoc.locationID == locID)
+		{
+			playerIDs.push(playerLoc.playerID);
+		}
+	}
+	return playerIDs;
+}
+
+// function GetPlayerCurrentLocationID(locID)
+// {
+	// for(index = 0; index < playerLocations.length; index++)
+	// {
+		// var playerLoc = playerLocations[index];
+		// if(playerLoc.playerID == pID)
+		// {
+			// return playerLoc.locationID;
+		// }
+	// }
+	// return 0;
+// }
 
 // Client Messages to Server For Reference
 // socket.On("AccusationMoveMade", OnAccusationMoveMade);
