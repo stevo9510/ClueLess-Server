@@ -8,212 +8,6 @@ server = require('http').createServer(app),
 port = process.env.PORT || 3000,
 io = require('socket.io')(server);
 
-var Scarlet = 1,
-	Mustard = 2,
-	Orchid = 3,
-	Green = 4,
-	Peacock = 5,
-	Plum = 6;
-
-var Study = 1,
-    Hall = 2,
-    Lounge = 3,
-    Library = 4,
-    BilliardRoom = 5,
-    DiningRoom = 6,
-    Conservatory = 7,
-    Ballroom = 8,
-    Kitchen = 9,
-    StudyHall = 10,
-    HallLounge = 11,
-    StudyLib = 12, 
-    HallBill = 13,
-    LoungeDin = 14,
-    LibBill = 15,
-    BillDin = 16,
-    LibCon = 17,
-    BillBall = 18,
-    DinKitch = 19,
-    ConBall = 20,
-    BallKitch = 21;
-
-// Setup all the playerDetails 
-// TODO: Move this elsewhere?
-var playerDetailsDictionary = {}
-
-for(index = 1; index <= 6; index++)
-{
-	playerDetailsDictionary[index] = 
-	{
-		playerID : index,
-		dealtCards : [],
-		isActive : false,
-		isEliminated : false,
-		wasSuggestedAndMovedLastTurn : false
-	};
-}
-playerDetailsDictionary[Scarlet].defaultStartLocation = HallLounge; // HallLounge
-playerDetailsDictionary[Mustard].defaultStartLocation = LoungeDin; // LoungeDin
-playerDetailsDictionary[Orchid].defaultStartLocation = BallKitch; // BallKitch
-playerDetailsDictionary[Green].defaultStartLocation = ConBall; // ConBall
-playerDetailsDictionary[Peacock].defaultStartLocation = LibCon; // LibCon
-playerDetailsDictionary[Plum].defaultStartLocation = StudyLib; // StudyLib
-
-var locationDetailsDictionary = {};
-locationDetailsDictionary[Study] = 
-{
-	locationID : Study,
-	edges : [Kitchen, StudyHall, StudyLib],
-	isRoom : true
-};
-
-locationDetailsDictionary[Hall] = 
-{
-	locationID : Hall,
-	edges : [StudyHall, HallLounge, HallBill],
-	isRoom : true
-};
-
-locationDetailsDictionary[Lounge] = 
-{
-	locationID : Lounge,
-	edges : [Conservatory, HallLounge, LoungeDin],
-	isRoom : true
-};
-
-locationDetailsDictionary[Library] = 
-{
-	locationID : Library,
-	edges : [StudyLib, LibBill, LibCon],
-	isRoom : true
-};
-
-locationDetailsDictionary[BilliardRoom] = 
-{
-	locationID : BilliardRoom,
-	edges : [LibBill, HallBill, BillDin, BillBall],
-	isRoom : true
-};
-
-locationDetailsDictionary[DiningRoom] = 
-{
-	locationID : DiningRoom,
-	edges : [LoungeDin, BillDin, DinKitch],
-	isRoom : true
-};
-
-locationDetailsDictionary[Conservatory] = 
-{
-	locationID : Conservatory,
-	edges : [Lounge, LibCon, ConBall],
-	isRoom : true
-};
-
-locationDetailsDictionary[Ballroom] = 
-{
-	locationID : Ballroom,
-	edges : [ConBall, BillBall, BallKitch],
-	isRoom : true
-};
-
-locationDetailsDictionary[Kitchen] = 
-{
-	locationID : Kitchen,
-	edges : [Study, BallKitch, DinKitch],
-	isRoom : true
-};
-
-locationDetailsDictionary[StudyHall] = 
-{
-	locationID : StudyHall,
-	edges : [Study, Hall],
-	isRoom : false
-};
-
-locationDetailsDictionary[HallLounge] = 
-{
-	locationID : HallLounge,
-	edges : [Hall, Lounge],
-	isRoom : false
-};
-
-locationDetailsDictionary[StudyLib] = 
-{
-	locationID : StudyLib,
-	edges : [Study, Library],
-	isRoom : false
-};
-
-locationDetailsDictionary[HallBill] = 
-{
-	locationID : HallBill,
-	edges : [Hall, BilliardRoom],
-	isRoom : false
-};
-
-locationDetailsDictionary[LoungeDin] = 
-{
-	locationID : LoungeDin,
-	edges : [Lounge, DiningRoom],
-	isRoom : false
-};
-
-locationDetailsDictionary[LibBill] = 
-{
-	locationID : LibBill,
-	edges : [Library, BilliardRoom],
-	isRoom : false
-};
-
-locationDetailsDictionary[BillDin] = 
-{
-	locationID : BillDin,
-	edges : [BilliardRoom, DiningRoom],
-	isRoom : false
-};
-
-locationDetailsDictionary[LibCon] = 
-{
-	locationID : LibCon,
-	edges : [Library, Conservatory],
-	isRoom : false
-};
-
-locationDetailsDictionary[BillBall] = 
-{
-	locationID : BillBall,
-	edges : [BilliardRoom, Ballroom],
-	isRoom : false
-};
-
-locationDetailsDictionary[DinKitch] = 
-{
-	locationID : DinKitch,
-	edges : [DiningRoom, Kitchen],
-	isRoom : false
-};
-
-locationDetailsDictionary[ConBall] = 
-{
-	locationID : ConBall,
-	edges : [Conservatory, Ballroom],
-	isRoom : false
-};
-
-locationDetailsDictionary[BallKitch] = 
-{
-	locationID : BallKitch,
-	edges : [Ballroom, Kitchen],
-	isRoom : false
-};
-
-var PlayerLocations = [];
-var caseFile;
-var CurrentTurnPlayerID;
-var CurrentProveTurnPlayerID;
-var CurrentSuggestionCards;
-var PlayerSockets = {};
-
 // Server Start
 server.listen(port);
 console.log('Server listening on port 3000.');
@@ -264,23 +58,250 @@ io.on('connection', function(socket){
 
 });
 
+
+// DECLARE ENUMS 
+PlayerEnum = 
+{
+	Scarlet : 1,
+	Mustard : 2,
+	Orchid : 3,
+	Green : 4,
+	Peacock : 5,
+	Plum : 6
+}
+
+LocEnum =
+{ 
+	Study : 1,
+    Hall : 2,
+    Lounge : 3,
+    Library : 4,
+    BilliardRoom : 5,
+    DiningRoom : 6,
+    Conservatory : 7,
+    Ballroom : 8,
+    Kitchen : 9,
+    StudyHall : 10,
+    HallLounge : 11,
+    StudyLib : 12, 
+    HallBill : 13,
+    LoungeDin : 14,
+    LibBill : 15,
+    BillDin : 16,
+    LibCon : 17,
+    BillBall : 18,
+    DinKitch : 19,
+    ConBall : 20,
+    BallKitch : 21
+}
+
+// Setup all the playerDetails and add to this dictionary for referencing
+var playerDetailsDictionary = {}
+
+for(index = 1; index <= 6; index++)
+{
+	// index = playerID / enum.  
+	playerDetailsDictionary[index] = 
+	{
+		dealtCards : [],
+		isActive : false,
+		isEliminated : false,
+		wasSuggestedAndMovedLastTurn : false
+	};
+}
+// Define the default starting positions for all the locations
+playerDetailsDictionary[PlayerEnum.Scarlet].defaultStartLocation = LocEnum.HallLounge; 
+playerDetailsDictionary[PlayerEnum.Mustard].defaultStartLocation = LocEnum.LoungeDin; 
+playerDetailsDictionary[PlayerEnum.Orchid].defaultStartLocation = LocEnum.BallKitch; 
+playerDetailsDictionary[PlayerEnum.Green].defaultStartLocation = LocEnum.ConBall; 
+playerDetailsDictionary[PlayerEnum.Peacock].defaultStartLocation = LocEnum.LibCon; 
+playerDetailsDictionary[PlayerEnum.Plum].defaultStartLocation = LocEnum.StudyLib; 
+
+// Initialize all the Location Detail Information and Setup Their Edges 
+var locationDetailsDictionary = {};
+locationDetailsDictionary[LocEnum.Study] = 
+{
+	edges : [LocEnum.Kitchen, LocEnum.StudyHall, LocEnum.StudyLib],
+	isRoom : true
+};
+
+locationDetailsDictionary[LocEnum.Hall] = 
+{
+	edges : [LocEnum.StudyHall, LocEnum.HallLounge, LocEnum.HallBill],
+	isRoom : true
+};
+
+locationDetailsDictionary[LocEnum.Lounge] = 
+{
+	locationID : LocEnum.Lounge,
+	edges : [LocEnum.Conservatory, LocEnum.HallLounge, LocEnum.LoungeDin],
+	isRoom : true
+};
+
+locationDetailsDictionary[LocEnum.Library] = 
+{
+	locationID : LocEnum.Library,
+	edges : [LocEnum.StudyLib, LocEnum.LibBill, LocEnum.LibCon],
+	isRoom : true
+};
+
+locationDetailsDictionary[LocEnum.BilliardRoom] = 
+{
+	locationID : LocEnum.BilliardRoom,
+	edges : [LocEnum.LibBill, LocEnum.HallBill, LocEnum.BillDin, LocEnum.BillBall],
+	isRoom : true
+};
+
+locationDetailsDictionary[LocEnum.DiningRoom] = 
+{
+	locationID : LocEnum.DiningRoom,
+	edges : [LocEnum.LoungeDin, LocEnum.BillDin, LocEnum.DinKitch],
+	isRoom : true
+};
+
+locationDetailsDictionary[LocEnum.Conservatory] = 
+{
+	locationID : LocEnum.Conservatory,
+	edges : [LocEnum.Lounge, LocEnum.LibCon, LocEnum.ConBall],
+	isRoom : true
+};
+
+locationDetailsDictionary[LocEnum.Ballroom] = 
+{
+	locationID : LocEnum.Ballroom,
+	edges : [LocEnum.ConBall, LocEnum.BillBall, LocEnum.BallKitch],
+	isRoom : true
+};
+
+locationDetailsDictionary[LocEnum.Kitchen] = 
+{
+	locationID : LocEnum.Kitchen,
+	edges : [LocEnum.Study, LocEnum.BallKitch, LocEnum.DinKitch],
+	isRoom : true
+};
+
+locationDetailsDictionary[LocEnum.StudyHall] = 
+{
+	locationID : LocEnum.StudyHall,
+	edges : [LocEnum.Study, LocEnum.Hall],
+	isRoom : false
+};
+
+locationDetailsDictionary[LocEnum.HallLounge] = 
+{
+	locationID : LocEnum.HallLounge,
+	edges : [LocEnum.Hall, LocEnum.Lounge],
+	isRoom : false
+};
+
+locationDetailsDictionary[LocEnum.StudyLib] = 
+{
+	locationID : LocEnum.StudyLib,
+	edges : [LocEnum.Study, LocEnum.Library],
+	isRoom : false
+};
+
+locationDetailsDictionary[LocEnum.HallBill] = 
+{
+	locationID : LocEnum.HallBill,
+	edges : [LocEnum.Hall, LocEnum.BilliardRoom],
+	isRoom : false
+};
+
+locationDetailsDictionary[LocEnum.LoungeDin] = 
+{
+	locationID : LocEnum.LoungeDin,
+	edges : [LocEnum.Lounge, LocEnum.DiningRoom],
+	isRoom : false
+};
+
+locationDetailsDictionary[LocEnum.LibBill] = 
+{
+	locationID : LocEnum.LibBill,
+	edges : [LocEnum.Library, LocEnum.BilliardRoom],
+	isRoom : false
+};
+
+locationDetailsDictionary[LocEnum.BillDin] = 
+{
+	locationID : LocEnum.BillDin,
+	edges : [LocEnum.BilliardRoom, LocEnum.DiningRoom],
+	isRoom : false
+};
+
+locationDetailsDictionary[LocEnum.LibCon] = 
+{
+	locationID : LocEnum.LibCon,
+	edges : [LocEnum.Library, LocEnum.Conservatory],
+	isRoom : false
+};
+
+locationDetailsDictionary[LocEnum.BillBall] = 
+{
+	locationID : LocEnum.BillBall,
+	edges : [LocEnum.BilliardRoom, LocEnum.Ballroom],
+	isRoom : false
+};
+
+locationDetailsDictionary[LocEnum.DinKitch] = 
+{
+	locationID : LocEnum.DinKitch,
+	edges : [LocEnum.DiningRoom, LocEnum.Kitchen],
+	isRoom : false
+};
+
+locationDetailsDictionary[LocEnum.ConBall] = 
+{
+	locationID : LocEnum.ConBall,
+	edges : [LocEnum.Conservatory, LocEnum.Ballroom],
+	isRoom : false
+};
+
+locationDetailsDictionary[LocEnum.BallKitch] = 
+{
+	locationID : LocEnum.BallKitch,
+	edges : [LocEnum.Ballroom, LocEnum.Kitchen],
+	isRoom : false
+};
+
+
+// Declare gameplay variables that are stored in memory.  "Our DAO layer"
+var PlayerLocations = []; // Will Store an Array of {PlayerID, LocationID} objects
+var caseFile; // should contain a playerID, weaponID, and roomID
+var CurrentTurnPlayerID; 
+var CurrentProveTurnPlayerID;  
+var CurrentSuggestionCards;  
+var playerSockets = {};  // a dictionary of PlayerIDs (the key) to Socket.IO sockets.  
+
+
 function PlayerJoinedGame(socket)
 {
 	// log to server console
 	console.log('socketID: ' + socket.id);
 	var playerID = 0;
+	
+	// find a player that is not active 
 	Object.keys(playerDetailsDictionary).forEach(function(key) {
+		// have to add the "playerID == 0" condition because there is no break statement using this foreach.  
 		if(playerDetailsDictionary[key].isActive == false && playerID == 0)
 		{
 			playerID = key;
 		}
 	});
 	
+	// if player was assigned an id.
 	if(playerID > 0)
 	{
+		// activate player
 		playerDetailsDictionary[playerID].isActive = true;
-		PlayerSockets[playerID] = socket;
+		
+		// map playerID to socket to help us send messages to a player later
+		playerSockets[playerID] = socket;
+		
+		// let player know what id they were assigned
 		socket.emit('PlayerAssignedID', { playerID: playerID } );
+		
+		// get all the players in the game at this point
 		var playersInGame = []
 		Object.keys(playerDetailsDictionary).forEach(function(key) 
 		{
@@ -289,35 +310,44 @@ function PlayerJoinedGame(socket)
 				playersInGame.push(key);
 			}
 		});
+		// send everyone that list to notify them
 		io.sockets.emit('PlayersInGameChanged', { playerIDs: playersInGame } );
 		
-		if(playersInGame.length)
+		// if everyone is in, start the game
+		// TODO: this should be playersInGame.length == 6; leaving for now for debuggin
+		if(playersInGame.length) 
 		{
 			StartGame();
 		}
+	}
+	else
+	{
+		// ignore player.  sorry dude, you can't play
 	}
 
 }
 
 function StartGame()
 {
-	// Shuffle Cards
 	shuffledCards = ShuffleCards();
-		
+
+	// deal cards.  assumes all 6 players are playing the game.
 	for(var ind = 0; ind < shuffledCards.length; ind++)
 	{
 		var playerIdToDealCard = (ind % 6) + 1;
 		playerDetailsDictionary[playerIdToDealCard].dealtCards.push(shuffledCards[ind]);
 	}	
 	
+	console.log("Case File: ");
 	console.log(caseFile);
-	Object.keys(PlayerSockets).forEach(function(key) {
+	// let players know of their cards dealt
+	Object.keys(playerSockets).forEach(function(key) {
+		console.log('Cards Dealt to Player ' + key);
 		console.log(playerDetailsDictionary[key].dealtCards);
-		PlayerSockets[key].emit('CardsDealt', { cardIDs: playerDetailsDictionary[key].dealtCards });
+		playerSockets[key].emit('CardsDealt', { cardIDs: playerDetailsDictionary[key].dealtCards });
 	});
 	
-	CurrentTurnPlayerID = Scarlet;
-	
+	NextTurn();
 }
 
 function ShuffleCards()
@@ -368,6 +398,21 @@ function CopyFromArrayToAnother(source, target, offset)
 	{
 		target.push(source[index] + offset);
 	}
+}
+
+function NextTurn()
+{
+	// update to next turn
+	if(CurrentTurnPlayerID > 0)
+	{
+		CurrentTurnPlayerID = (CurrentTurnPlayerID % 6) + 1;
+	}
+	else // start of game
+	{
+		CurrentTurnPlayerID = PlayerEnum.Scarlet;
+	}
+	
+	
 }
 
 
