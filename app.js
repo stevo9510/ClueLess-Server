@@ -40,8 +40,10 @@ io.on('connection', function(socket){
 
   // User Disproves Suggestion
   socket.on('disproveSuggestion', function(data) {
-    console.log('');
-
+    console.log('DISPROVE SUGGESTION');
+	console.log(data);
+	SuggestionProofResponseSent(data);
+	
   });
 
 
@@ -329,8 +331,7 @@ function PlayerJoinedGame(socket)
 		io.sockets.emit('PlayersInGameChanged', { playerIDs: playersInGame } );
 		
 		// if everyone is in, start the game
-		// TODO: this should be playersInGame.length == 6; leaving for now for debuggin
-		if(playersInGame.length) 
+		if(playersInGame.length == 6) 
 		{
 			StartGame();
 		}
@@ -556,9 +557,7 @@ function MakeMove(moveData)
 	{
 		case MoveEnum.MoveToHallway:
 			UpdatePlayerLocation(currentTurnPlayerID, moveData.LocationID);
-			
-			// TODO: Comment this in later 
-			//NextTurn();
+			NextTurn();
 			break;
 		case MoveEnum.MoveToRoomAndSuggest:
 		case MoveEnum.StayInRoomAndSuggest:
@@ -662,6 +661,24 @@ function SendCurrentPlayerAccuseAndEndTurnMove()
 	// wait for response
 }
 
+function SuggestionProofResponseSent(data)
+{
+	// player debunked the suggestion.  
+	if(data.CardID > 0)
+	{
+		// notify player at turn of the card that debunks the suggestion
+		playerSockets[currentTurnPlayerID].emit('SuggestionDebunk', { playerID : currentProveTurnPlayerID, cardID : data.CardID });
+		
+		// give current turn player option now to accuse or end turn
+		SendCurrentPlayerAccuseAndEndTurnMove();
+	}
+	else
+	{
+		// player did not have a suggestion proof response.  so skip to the next turn
+		NextSuggestionProveTurn();	
+	}
+}
+
 function MakeAccusation(accRoomID, accPlayerID, accWeaponID)
 {
 	var isAccCorrect = false;
@@ -699,8 +716,8 @@ function MakeAccusation(accRoomID, accPlayerID, accWeaponID)
 		// eliminate the player, and start the next turn
 		playerDetail.isEliminated = true;
 		
-		// TODO: Comment this in later 
-		//NextTurn();
+		// start next turn
+		NextTurn();
 	}
 	else
 	{
