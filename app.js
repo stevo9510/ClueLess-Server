@@ -553,6 +553,8 @@ function MakeMove(moveData)
 	{
 		case MoveEnum.MoveToHallway:
 			UpdatePlayerLocation(currentTurnPlayerID, moveData.LocationID);
+			
+			// TODO: Comment this in later 
 			//NextTurn();
 			break;
 		case MoveEnum.MoveToRoomAndSuggest:
@@ -571,14 +573,55 @@ function MakeMove(moveData)
 	}
 }
 
-function MakeSuggestion(locID, pID, wID)
+function MakeSuggestion(suggRoomID, suggPlayerID, suggWeaponID)
 {
 	// TODO: Fill in 
 }
 
-function MakeAccusation(locID, pID, wID)
+function MakeAccusation(accRoomID, accPlayerID, accWeaponID)
 {
-	// TODO: Fill in
+	var isAccCorrect = false;
+	
+	if(caseFile.roomID == accRoomID 
+		&& caseFile.playerID == accPlayerID 
+		&& caseFile.weaponID == accWeaponID)
+	{
+		isAccCorrect = true;
+	}
+	console.log("isAccCorrect: " + isAccCorrect);
+	
+	// let everyone know what the accusation was and whether it was correct or not.
+	io.sockets.emit('AccusationMoveMade', 
+		{ 
+			playerThatMadeAccusation : currentTurnPlayerID,  
+			playerID : accPlayerID,
+			weaponID : accWeaponID,
+			roomID : accRoomID,
+			isCorrect : isAccCorrect
+		}
+	);
+	
+	// let player that made accusation know what the actual result was
+	playerSockets[currentTurnPlayerID].emit('AccusationResult', 
+	{
+		playerID : caseFile.playerID,
+		weaponID : caseFile.weaponID,
+		roomID : caseFile.roomID
+	});
+	
+	if(isAccCorrect == false)
+	{
+		var playerDetail = playerDetailsDictionary[currentTurnPlayerID];
+		// eliminate the player, and start the next turn
+		playerDetail.isEliminated = true;
+		
+		// TODO: Comment this in later 
+		//NextTurn();
+	}
+	else
+	{
+		// otherwise, game is over.
+	}
 }
 
 function UpdatePlayerLocation(pID, locID)
@@ -594,19 +637,6 @@ function UpdatePlayerLocation(pID, locID)
 	}
 	io.sockets.emit('PlayerMoved', { playerID : pID, locationID : locID } );
 }
-
-// function GetPlayerCurrentLocationID(locID)
-// {
-	// for(index = 0; index < playerLocations.length; index++)
-	// {
-		// var playerLoc = playerLocations[index];
-		// if(playerLoc.playerID == pID)
-		// {
-			// return playerLoc.locationID;
-		// }
-	// }
-	// return 0;
-// }
 
 // Client Messages to Server For Reference
 // socket.On("AccusationMoveMade", OnAccusationMoveMade);
