@@ -28,8 +28,8 @@ io.on('connection', function(socket){
   console.log('User connected.');
 
   // TODO delete this later  ... just for config testing
-  socket.on('message', function(msg){
-    io.sockets.emit('message', msg)
+  socket.on('connection-test-message', function(msg){
+    io.sockets.emit('connection-test-message', msg)
   });
 
 
@@ -52,7 +52,7 @@ io.on('connection', function(socket){
     console.log('DISPROVE SUGGESTION');
 	console.log(data);
 	SuggestionProofResponseSent(data);
-	
+
   });
 
 
@@ -586,32 +586,32 @@ function MakeSuggestion(suggRoomID, suggPlayerID, suggWeaponID)
 {
 	currentSuggestionCards = { playerID : suggPlayerID, weaponID : suggWeaponID, roomID : suggRoomID };
 	currentProveTurnPlayerID = 0;
-	
-	// move the current player 
+
+	// move the current player
 	UpdatePlayerLocation(currentTurnPlayerID, suggRoomID);
-		
-	io.sockets.emit("SuggestionMoveMade", 
-	{ 
-		playerMakingSuggestionID : currentTurnPlayerID,  
+
+	io.sockets.emit("SuggestionMoveMade",
+	{
+		playerMakingSuggestionID : currentTurnPlayerID,
 		playerID : suggPlayerID,
 		weaponID : suggWeaponID,
 		roomID : suggRoomID,
 	});
-	
+
 	// move the suggested player to the suggested room
 	UpdatePlayerLocation(suggPlayerID, suggRoomID);
-	
+
 	//  we don't need to keep track of the weapon location on server side. just notify everyone its been moved
 	io.sockets.emit("WeaponMoved", { weaponID : suggWeaponID, locationID : suggRoomID } );
-		
+
 	NextSuggestionProveTurn();
 }
 
 function NextSuggestionProveTurn()
 {
-	// ASSUMES ALL 6 PLAYERS ARE PARTICIPATING IN GAME	
-	
-	// if first starting suggestion prove turns, then go clockwise from the person 
+	// ASSUMES ALL 6 PLAYERS ARE PARTICIPATING IN GAME
+
+	// if first starting suggestion prove turns, then go clockwise from the person
 	if(currentProveTurnPlayerID == 0)
 	{
 		currentProveTurnPlayerID = (currentTurnPlayerID % 6) + 1;
@@ -621,7 +621,7 @@ function NextSuggestionProveTurn()
 		// otherwise, just get next prove turn player
 		currentProveTurnPlayerID = (currentProveTurnPlayerID % 6) + 1;
 	}
-	
+
 	// if we've circled back around to the current player, provide them with abililty to accuse or end turn
 	if(currentProveTurnPlayerID == currentTurnPlayerID)
 	{
@@ -631,98 +631,98 @@ function NextSuggestionProveTurn()
 	{
 		// notify all that current prove turn player has changed
 		io.sockets.emit('SuggestionProveTurnChanged', { playerID : currentProveTurnPlayerID } );
-		
+
 		// provide client with prove options
 		var cardOptions = [];
-		var suggestionTurnPlayerDetail = playerDetailsDictionary[currentProveTurnPlayerID];	
-		
+		var suggestionTurnPlayerDetail = playerDetailsDictionary[currentProveTurnPlayerID];
+
 		for(index = 0; index < suggestionTurnPlayerDetail.dealtCards; index++)
 		{
 			var cardID = suggestionTurnPlayerDetail.dealtCards[index];
-			
+
 			// player has one of the cards suggested to prove the suggestion wrong
-			if(cardID == suggRoomID || 
+			if(cardID == suggRoomID ||
 				cardID == (suggPlayerID + CONST_PLAYER_CARD_ENUM_OFFSET) ||  // Have to do offsets here to get the card enums to match against the PLAYER/WEAPON enums
-				cardID == (suggWeaponID + CONST_WEAPON_CARD_ENUM_OFFSET) )   
+				cardID == (suggWeaponID + CONST_WEAPON_CARD_ENUM_OFFSET) )
 			{
 				cardOptions.push(cardID);
 			}
 		}
-		
+
 		// let single client know of their prove options
-		playerSockets[currentProveTurnPlayerID].emit('SuggestionProveOptions', { cardsPlayerCanSelect : cardOptions } );	
+		playerSockets[currentProveTurnPlayerID].emit('SuggestionProveOptions', { cardsPlayerCanSelect : cardOptions } );
 	}
-	
+
 }
 
 function SendCurrentPlayerAccuseAndEndTurnMove()
 {
 	var playerMoveOptions = [];
-	
+
 	CreateMoveOptionAndPush(MoveEnum.MakeAnAccusation, 0, playerMoveOptions);
 	CreateMoveOptionAndPush(MoveEnum.EndTurn, 0, playerMoveOptions);
-	
+
 	// notify current player at turn of their move options
 	playerSockets[currentTurnPlayerID].emit('MoveOptions', { moveOptions : playerMoveOptions });
-	
+
 	// wait for response
 }
 
 function SuggestionProofResponseSent(data)
 {
-	// player debunked the suggestion.  
+	// player debunked the suggestion.
 	if(data.CardID > 0)
 	{
 		// notify player at turn of the card that debunks the suggestion
 		playerSockets[currentTurnPlayerID].emit('SuggestionDebunk', { playerID : currentProveTurnPlayerID, cardID : data.CardID });
-		
+
 		// give current turn player option now to accuse or end turn
 		SendCurrentPlayerAccuseAndEndTurnMove();
 	}
 	else
 	{
 		// player did not have a suggestion proof response.  so skip to the next turn
-		NextSuggestionProveTurn();	
+		NextSuggestionProveTurn();
 	}
 }
 
 function MakeAccusation(accRoomID, accPlayerID, accWeaponID)
 {
 	var isAccCorrect = false;
-	
-	if(caseFile.roomID == accRoomID 
-		&& caseFile.playerID == accPlayerID 
+
+	if(caseFile.roomID == accRoomID
+		&& caseFile.playerID == accPlayerID
 		&& caseFile.weaponID == accWeaponID)
 	{
 		isAccCorrect = true;
 	}
 	console.log("isAccCorrect: " + isAccCorrect);
-	
+
 	// let everyone know what the accusation was and whether it was correct or not.
-	io.sockets.emit('AccusationMoveMade', 
-		{ 
-			playerThatMadeAccusation : currentTurnPlayerID,  
+	io.sockets.emit('AccusationMoveMade',
+		{
+			playerThatMadeAccusation : currentTurnPlayerID,
 			playerID : accPlayerID,
 			weaponID : accWeaponID,
 			roomID : accRoomID,
 			isCorrect : isAccCorrect
 		}
 	);
-	
+
 	// let player that made accusation know what the actual result was
-	playerSockets[currentTurnPlayerID].emit('AccusationResult', 
+	playerSockets[currentTurnPlayerID].emit('AccusationResult',
 	{
 		playerID : caseFile.playerID,
 		weaponID : caseFile.weaponID,
 		roomID : caseFile.roomID
 	});
-	
+
 	if(isAccCorrect == false)
 	{
 		var playerDetail = playerDetailsDictionary[currentTurnPlayerID];
 		// eliminate the player, and start the next turn
 		playerDetail.isEliminated = true;
-		
+
 		// start next turn
 		NextTurn();
 	}
@@ -741,14 +741,14 @@ function UpdatePlayerLocation(pID, locID)
 		playerLocations.push({ playerID : pID, locationID: locID });
 	}
 	else if(currentLoc.locationID != locID)
-	{	
+	{
 		currentLoc.locationID = locID;
 	}
 	else
 	{
 		playerActuallyMoved = false;
-	}	
-	
+	}
+
 	if(playerActuallyMoved == true)
 	{
 		io.sockets.emit('PlayerMoved', { playerID : pID, locationID : locID } );

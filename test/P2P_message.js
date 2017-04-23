@@ -42,8 +42,8 @@ describe('Connect & P2P Message', function(){
 
   describe('Message Events', function(){
     it('Client can send message to another client.', function(done){
-      sender.emit('message', testMsg)
-      receiver.on('message', function(msg){
+      sender.emit('connection-test-message', testMsg)
+      receiver.on('connection-test-message', function(msg){
         expect(msg).to.equal(testMsg)
         expect(msg).to.not.equal('blah')
         done()
