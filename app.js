@@ -31,7 +31,9 @@ io.on('connection', function(socket){
 
   // User Makes Move
   socket.on('makeMove', function(data) {
-    console.log('sock id ' + socket.id);
+    console.log('MOVE DATA ');
+	console.log(data);
+	MakeMove(data);
 
   });
 
@@ -505,7 +507,7 @@ function NextTurn()
 
 function CreateMoveOptionAndPush(mID, locID, options)
 {
-	var moveOption = { moveID : mID, locationID : locId};
+	var moveOption = { moveID : mID, locationID : locID };
 	options.push(moveOption);
 }
 
@@ -534,6 +536,46 @@ function GetPlayerIDsAtCurrentLocation(locID)
 		}
 	}
 	return playerIDs;
+}
+
+function MakeMove(moveData)
+{
+	switch(moveData.MoveID)
+	{
+		case MoveEnum.MoveToHallway:
+			UpdateCurrentPlayerLocation(currentTurnPlayerID, moveData.locID);
+			NextTurn();
+			break;
+		case MoveEnum.MoveToRoomAndSuggest:
+		case MoveEnum.StayInRoomAndSuggest:
+		case MoveEnum.TakeSecretPassageAndSuggest:
+			MakeSuggestion(moveData.LocationID, moveData.PlayerID, moveData.WeaponID);
+			
+			break;
+		case MoveEnum.MakeAnAccusation:
+			MakeAccusation(moveData.LocationID, moveData.PlayerID, moveData.WeaponID);
+			break;
+			
+		case MoveEnum.EndTurn:
+			NextTurn();
+			break;
+	}
+}
+
+function MakeSuggestion(locID, pID, wID)
+{
+	// TODO: Fill in 
+}
+
+function MakeAccusation(locID, pID, wID)
+{
+	// TODO: Fill in
+}
+
+function UpdatePlayerLocation(pID, locID)
+{
+	playerLocations[pID] = locID;
+	io.sockets.emit('PlayerMoved', { playerID : pID, locationID : locID } );
 }
 
 // function GetPlayerCurrentLocationID(locID)
