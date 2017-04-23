@@ -511,17 +511,26 @@ function CreateMoveOptionAndPush(mID, locID, options)
 	options.push(moveOption);
 }
 
-function GetPlayerCurrentLocationID(pID)
+function GetPlayerLocation(pID)
 {
 	for(index = 0; index < playerLocations.length; index++)
 	{
 		var playerLoc = playerLocations[index];
 		if(playerLoc.playerID == pID)
 		{
-			return playerLoc.locationID;
+			return playerLoc;
 		}
 	}
-	return 0;
+	return null;
+}
+
+function GetPlayerCurrentLocationID(pID)
+{
+	var playerLoc = GetPlayerLocation(pID);
+	if(playerLoc == null)
+		return 0;
+	
+	return playerLoc.playerID;
 }
 
 function GetPlayerIDsAtCurrentLocation(locID)
@@ -543,8 +552,8 @@ function MakeMove(moveData)
 	switch(moveData.MoveID)
 	{
 		case MoveEnum.MoveToHallway:
-			UpdateCurrentPlayerLocation(currentTurnPlayerID, moveData.locID);
-			NextTurn();
+			UpdatePlayerLocation(currentTurnPlayerID, moveData.LocationID);
+			//NextTurn();
 			break;
 		case MoveEnum.MoveToRoomAndSuggest:
 		case MoveEnum.StayInRoomAndSuggest:
@@ -574,7 +583,15 @@ function MakeAccusation(locID, pID, wID)
 
 function UpdatePlayerLocation(pID, locID)
 {
-	playerLocations[pID] = locID;
+	var currentLoc = GetPlayerLocation(pID);
+	if(currentLoc == null)
+	{
+		playerLocations.push({ playerID : pID, locationID: locID });
+	}
+	else
+	{
+		currentLoc.locationID = locID;
+	}
 	io.sockets.emit('PlayerMoved', { playerID : pID, locationID : locID } );
 }
 
