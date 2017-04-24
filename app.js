@@ -789,19 +789,3 @@ function UpdatePlayerLocation(pID, locID)
 // socket.On("WeaponMoved", OnWeaponMoved);
 
   // console.log('User connected.');
-
-  // TODO delete this later  ... just for config testing
-  socket.on('connection-test-message', function(msg){
-    io.sockets.emit('connection-test-message', msg)
-  });
-
-
-    PlayerJoinedGame(socket);
-    // console.log('somebody joined');
-	  console.log(data);
-	  SuggestionProofResponseSent(data);
-
-    // console.log('A user disconnected.');
-		io.to(socket.id).emit('PlayerAssignedID', { playerID: playerID } );
-
-		io.emit('PlayersInGameChanged', { playerIDs: playersInGame } );
