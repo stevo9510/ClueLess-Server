@@ -346,7 +346,8 @@ function PlayerJoinedGame(socket)
 	}
 	else
 	{
-		// ignore player.  sorry dude, you can't play
+		//ignore player.  sorry dude, you can't play
+    io.to(socket.id).emit('error',"sorry dude, you can't play.")
 	}
 
 }

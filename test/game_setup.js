@@ -1,3 +1,8 @@
+// Six Players Can join the game.
+// The player list is broadcasted.
+// Additional players receive error message when trying to join the game.
+
+
 var expect = require('chai').expect
   , server = require('../app.js')
   , io = require('../node_modules/socket.io-client')
@@ -10,16 +15,7 @@ var expect = require('chai').expect
 
 
 
-// DONE
-// Six Players Can join the game
-// The player list is broadcasted
-
-// TODO
-// Additional Players cannot join the game
-
-
 describe('Game Setup', function(){
-
   // setup
   beforeEach(function(done){
     // start the io server
@@ -33,8 +29,6 @@ describe('Game Setup', function(){
     player5 = io(addr, ioOptions)
     player6 = io(addr, ioOptions)
     player7 = io(addr, ioOptions)
-
-    // finish setup
     done()
   });
 
@@ -256,9 +250,13 @@ describe('Game Setup', function(){
     });
 
     describe('After player 7 tries to join.', function(done){
-      it('PlayersInGameChanged message remains unchanged.', function(done){
+      it('receives error message.', function(done){
+        console.log(msg)
         player7.emit('joinGame');
-        done()
+        player7.on('error', function(msg){
+          expect(msg).to.equal("sorry dude, you can't play.")
+          done()
+        });
       });
     });
 
