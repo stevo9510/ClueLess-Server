@@ -25,7 +25,7 @@ app.get('/', function(req, res){
 
 // Sockets
 io.on('connection', function(socket){
-  console.log('User connected.');
+  // console.log('User connected.');
 
   // TODO delete this later  ... just for config testing
   socket.on('connection-test-message', function(msg){
@@ -35,7 +35,8 @@ io.on('connection', function(socket){
 
   // User Joins Game
   socket.on('joinGame', function(data) {
-    PlayerJoinedGame(socket)
+    PlayerJoinedGame(socket);
+    // console.log('somebody joined');
   });
 
 
@@ -50,8 +51,8 @@ io.on('connection', function(socket){
   // User Disproves Suggestion
   socket.on('disproveSuggestion', function(data) {
     console.log('DISPROVE SUGGESTION');
-	console.log(data);
-	SuggestionProofResponseSent(data);
+	  console.log(data);
+	  SuggestionProofResponseSent(data);
 
   });
 
@@ -64,7 +65,7 @@ io.on('connection', function(socket){
 
   // User Disconencts
   socket.on('disconnect', function(data) {
-    console.log('A user disconnected.');
+    // console.log('A user disconnected.');
   });
 
 });
@@ -301,7 +302,7 @@ var CONST_WEAPON_CARD_ENUM_OFFSET = 15;
 function PlayerJoinedGame(socket)
 {
 	// log to server console
-	console.log('socketID: ' + socket.id);
+	// console.log('socketID: ' + socket.id);
 	var playerID = 0;
 
 	// find a player that is not active
@@ -323,7 +324,7 @@ function PlayerJoinedGame(socket)
 		playerSockets[playerID] = socket;
 
 		// let player know what id they were assigned
-		socket.emit('PlayerAssignedID', { playerID: playerID } );
+		io.to(socket.id).emit('PlayerAssignedID', { playerID: playerID } );
 
 		// get all the players in the game at this point
 		var playersInGame = []
@@ -335,10 +336,10 @@ function PlayerJoinedGame(socket)
 			}
 		});
 		// send everyone that list to notify them
-		io.sockets.emit('PlayersInGameChanged', { playerIDs: playersInGame } );
+		io.emit('PlayersInGameChanged', { playerIDs: playersInGame } );
 
 		// if everyone is in, start the game
-		if(playersInGame.length == 6) 
+		if(playersInGame.length == 6)
 		{
 			StartGame();
 		}
@@ -398,7 +399,7 @@ function ShuffleCards()
 	CopyFromArrayToAnother(rooms, cards, 0);
 	CopyFromArrayToAnother(characters, cards, CONST_PLAYER_CARD_ENUM_OFFSET);
 	CopyFromArrayToAnother(weapons, cards, CONST_WEAPON_CARD_ENUM_OFFSET)
-	
+
 	// one last re-shuffle
 	cards = ShuffleArray(cards);
 	return cards;
