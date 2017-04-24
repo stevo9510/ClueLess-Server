@@ -251,9 +251,9 @@ describe('Game Setup', function(){
 
     describe('After player 7 tries to join.', function(done){
       it('receives error message.', function(done){
-        console.log(msg)
         player7.emit('joinGame');
         player7.on('error', function(msg){
+          console.log(msg)
           expect(msg).to.equal("sorry dude, you can't play.")
           done()
         });
