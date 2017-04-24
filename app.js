@@ -24,10 +24,16 @@ app.get('/',function(req, res){
 // Sockets
 io.on('connection', function(socket){
   console.log('User connected.');
-  
+
+  // TODO delete this later  ... just for config testing
+  socket.on('connection-test-message', function(msg){
+    io.sockets.emit('connection-test-message', msg)
+  });
+
+
   // User Joins Game
   socket.on('joinGame', function(data) {
-	PlayerJoinedGame(socket)
+    PlayerJoinedGame(socket)
   });
 
 
@@ -45,7 +51,7 @@ io.on('connection', function(socket){
     console.log('DISPROVE SUGGESTION');
 	console.log(data);
 	SuggestionProofResponseSent(data);
-	
+
   });
 
 
@@ -57,9 +63,7 @@ io.on('connection', function(socket){
 
   // User Disconencts
   socket.on('disconnect', function(data) {
-    console.log('A user disconencted.');
-	
-
+    console.log('A user disconnected.');
   });
 
 });
@@ -296,7 +300,7 @@ var CONST_WEAPON_CARD_ENUM_OFFSET = 15;
 function PlayerJoinedGame(socket)
 {
 	// log to server console
-	console.log('socketID: ' + socket.id);
+	// console.log('socketID: ' + socket.id);
 	var playerID = 0;
 	
 	// find a player that is not active 
@@ -319,7 +323,7 @@ function PlayerJoinedGame(socket)
 		
 		// let player know what id they were assigned
 		socket.emit('PlayerAssignedID', { playerID: playerID } );
-		
+
 		// get all the players in the game at this point
 		var playersInGame = []
 		Object.keys(playerDetailsDictionary).forEach(function(key) 
@@ -331,16 +335,17 @@ function PlayerJoinedGame(socket)
 		});
 		// send everyone that list to notify them
 		io.sockets.emit('PlayersInGameChanged', { playerIDs: playersInGame } );
-		
+
 		// if everyone is in, start the game
-		if(playersInGame.length == 6) 
+		if(playersInGame.length == 6)
 		{
 			StartGame();
 		}
 	}
 	else
 	{
-		// ignore player.  sorry dude, you can't play
+		//ignore player.  sorry dude, you can't play
+    io.to(socket.id).emit('error',"sorry dude, you can't play.")
 	}
 
 }
@@ -393,7 +398,7 @@ function ShuffleCards()
 	CopyFromArrayToAnother(rooms, cards, 0);
 	CopyFromArrayToAnother(characters, cards, CONST_PLAYER_CARD_ENUM_OFFSET);
 	CopyFromArrayToAnother(weapons, cards, CONST_WEAPON_CARD_ENUM_OFFSET)
-	
+
 	// one last re-shuffle
 	cards = ShuffleArray(cards);
 
@@ -782,3 +787,21 @@ function UpdatePlayerLocation(pID, locID)
 // socket.On("SuggestionProveOptions", OnSuggestionProveOptionsReceived);
 // socket.On("SuggestionProveTurnChanged", OnSuggestionProveTurnChanged);
 // socket.On("WeaponMoved", OnWeaponMoved);
+
+  // console.log('User connected.');
+
+  // TODO delete this later  ... just for config testing
+  socket.on('connection-test-message', function(msg){
+    io.sockets.emit('connection-test-message', msg)
+  });
+
+
+    PlayerJoinedGame(socket);
+    // console.log('somebody joined');
+	  console.log(data);
+	  SuggestionProofResponseSent(data);
+
+    // console.log('A user disconnected.');
+		io.to(socket.id).emit('PlayerAssignedID', { playerID: playerID } );
+
+		io.emit('PlayersInGameChanged', { playerIDs: playersInGame } );
