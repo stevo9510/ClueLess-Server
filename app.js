@@ -613,9 +613,6 @@ function MakeSuggestion(suggRoomID, suggPlayerID, suggWeaponID)
 	    playerDetailsDictionary[suggPlayerID].wasSuggestedAndMovedLastTurn = true;
 	}
 
-	console.log("Player Locations");
-	console.log(playerLocations);
-
 	//  we don't need to keep track of the weapon location on server side. just notify everyone its been moved
 	io.sockets.emit("WeaponMoved", { weaponID : suggWeaponID, locationID : suggRoomID } );
 		
