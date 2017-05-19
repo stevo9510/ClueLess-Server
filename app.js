@@ -17,7 +17,7 @@ app.use(express.static(__dirname + '/static'));
 
 // Redirect serve index.html
 app.get('/',function(req, res){
-  res.sendFile(__dirname + '/static/index.html');
+  res.sendFile(__dirname + '/site/index.html');
 });
 
 
