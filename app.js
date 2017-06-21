@@ -368,7 +368,7 @@ function PlayerDisconnectedGame(socket)
             playerID = key;
         }
     });
-    playerSockets
+    delete playerSockets[playerID];
 }
 
 function StartGame()
