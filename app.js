@@ -10,7 +10,7 @@ io = require('socket.io')(server);
 
 // Server Start
 server.listen(port);
-console.log('Server listening on port 3000.');
+console.log('Server listening on port ' + port);
 
 
 app.use(express.static(__dirname + '/static'));
@@ -62,7 +62,8 @@ io.on('connection', function(socket){
   });
 
   // User Disconencts
-  socket.on('disconnect', function(data) {
+  socket.on('disconnect', function (data) {
+      PlayerDisconnectedGame(socket);
     console.log('A user disconnected.');
   });
 
@@ -292,6 +293,7 @@ var currentTurnPlayerID = 0;
 var currentProveTurnPlayerID = 0;  
 var currentSuggestionCards;
 var playerSockets = {};  // a dictionary of PlayerIDs (the key) to Socket.IO sockets.  
+var gameStarted = false;
 
 // constants
 var CONST_PLAYER_CARD_ENUM_OFFSET = 9;
@@ -303,10 +305,12 @@ function PlayerJoinedGame(socket)
 	// console.log('socketID: ' + socket.id);
 	var playerID = 0;
 	
-	// find a player that is not active 
+    // find a player that is not active.
+    // if game has already started, then try to assign to a player that was dealt cards.  otherwise, that player cannot play
 	Object.keys(playerDetailsDictionary).forEach(function(key) {
-		// have to add the "playerID == 0" condition because there is no break statement using this foreach.  
-		if(playerDetailsDictionary[key].isActive == false && playerID == 0)
+	    // have to add the "playerID == 0" condition because there is no break statement using this foreach.  
+
+	    if ((gameStarted == false || playerDetailsDictionary[key].dealtCards) && playerDetailsDictionary[key].isActive == false && playerID == 0)
 		{
 			playerID = key;
 		}
@@ -336,8 +340,13 @@ function PlayerJoinedGame(socket)
 		// send everyone that list to notify them
 		io.sockets.emit('PlayersInGameChanged', { playerIDs: playersInGame } );
 
+		if (gameStarted == true)
+		{
+            // resume gameplay and notify others of player moves.
+		    GeneratePlayerTurnMoves();
+		}
 		// if everyone is in, start the game
-		if(playersInGame.length == 6)
+		else if(playersInGame.length == 6)
 		{
 			StartGame();
 		}
@@ -345,9 +354,21 @@ function PlayerJoinedGame(socket)
 	else
 	{
 		//ignore player.  sorry dude, you can't play
-    io.to(socket.id).emit('error',"sorry dude, you can't play.")
+	    io.to(socket.id).emit('GameFullMessage', {});
 	}
 
+}
+
+function PlayerDisconnectedGame(socket)
+{
+    var playerID = 0;
+    Object.keys(playerSockets).forEach(function (key) {
+        // have to add the "playerID == 0" condition because there is no break statement using this foreach.  
+        if (playerSockets[key] == socket && playerID == 0) {
+            playerID = key;
+        }
+    });
+    playerSockets
 }
 
 function StartGame()
@@ -370,6 +391,8 @@ function StartGame()
 		playerSockets[key].emit('CardsDealt', { cardIDs: playerDetailsDictionary[key].dealtCards });
 	});
 	
+	gameStarted = true;
+
 	NextTurn();
 }
 
@@ -434,93 +457,87 @@ function NextTurn()
 	{
 		currentTurnPlayerID = (currentTurnPlayerID % 6) + 1;
 		// keep looping if player until player is found that is not eliminated
-	}while(playerDetailsDictionary[currentTurnPlayerID].isEliminated == true);
+	}while(playerDetailsDictionary[currentTurnPlayerID].isEliminated == true || playerDetailsDictionary[currentTurnPlayerID].isActive == false);
 
-	// build move options for player
-	var playerMoveOptions = [];
-	
-	// check where player is currently located
-	var currentPlayerLocationID = GetPlayerCurrentLocationID(currentTurnPlayerID);
-	
-	var currPlayerTurnDetail = playerDetailsDictionary[currentTurnPlayerID];
-		
-	// case 1: player has not moved yet; allow them to move to default move location
-	if(currentPlayerLocationID == 0)
-	{
-		CreateMoveOptionAndPush(MoveEnum.MoveToHallway, currPlayerTurnDetail.defaultStartLocation, playerMoveOptions);
-	}
-	else
-	{		
-		var currLocDetail = locationDetailsDictionary[currentPlayerLocationID];
-		var currLocEdges = currLocDetail.edges;
-		var currLocIsRoom = currLocDetail.isRoom;
-		
-		console.log("Current Location Edges:");
-		console.log(currLocEdges);
+}
 
-		// loop through all bordering locations
-		for (var edgeIndex = 0; edgeIndex < currLocEdges.length; edgeIndex++)
-		{
-		    var edgeLocID = currLocEdges[edgeIndex];
-			var edgeDetail = locationDetailsDictionary[edgeLocID];
-			console.log(edgeDetail);
+function GeneratePlayerTurnMoves()
+{
+    // build move options for player
+    var playerMoveOptions = [];
 
-			// if bordering location is a room
-			if(edgeDetail.isRoom == true)
-			{
-				var roomMoveOptionEnum;
-				// Case 2: if current location is a room (and bordering location is a room), then this must be a secret passage way
-				if(currLocDetail.isRoom == true)
-				{
-					roomMoveOptionEnum = MoveEnum.TakeSecretPassageAndSuggest;
-				}
-				// Case 3: if current location is a hallway, and bordering location is a room, then this is simply a move to room and suggest
-				else
-				{
-					roomMoveOptionEnum = MoveEnum.MoveToRoomAndSuggest;
-				}
-				CreateMoveOptionAndPush(roomMoveOptionEnum, edgeLocID, playerMoveOptions);
-			}
-			// if bordering location is a hallway
-			else
-			{
-				// check if hallway is empty
-			    var playersAtLocation = GetPlayerIDsAtCurrentLocation(edgeLocID);
-			    console.log("players at location: " + playersAtLocation);
-				if(playersAtLocation.length == 0)
-				{
-					// Case 4: only allow move if hallway is empty
-					CreateMoveOptionAndPush(MoveEnum.MoveToHallway, edgeLocID, playerMoveOptions);
-				}
-			}
-		}	
-		
-		// Case 5: If player was moved to current location via suggest, give them the option to stay in the room
-		if(currPlayerTurnDetail.wasSuggestedAndMovedLastTurn == true)
-		{
-			CreateMoveOptionAndPush(MoveEnum.StayInRoomAndSuggest, currentPlayerLocationID, playerMoveOptions);
-			// turn this off now
-			currPlayerTurnDetail.wasSuggestedAndMovedLastTurn = false; 
-		}
-	}
-	
-	// always give the player the option to make an accusation
-	CreateMoveOptionAndPush(MoveEnum.MakeAnAccusation, 0, playerMoveOptions);
+    // check where player is currently located
+    var currentPlayerLocationID = GetPlayerCurrentLocationID(currentTurnPlayerID);
 
-	// at this point, if only one move option has been added (i.e. the accusation move) then the user is trapped is has no other moves to make.
-	// give them the option to end turn	
-	if(playerMoveOptions.length == 1)
-	{
-		CreateMoveOptionAndPush(MoveEnum.EndTurn, 0, playerMoveOptions);
-	}
-		
-	// notify all clients that player turn has changed
-	io.sockets.emit('PlayerTurnChanged', { playerID : currentTurnPlayerID });
-	
-	// notify current player at turn of their move options
-	playerSockets[currentTurnPlayerID].emit('MoveOptions', { moveOptions : playerMoveOptions });
-	
-	// wait for client response now to make a move
+    var currPlayerTurnDetail = playerDetailsDictionary[currentTurnPlayerID];
+
+    // case 1: player has not moved yet; allow them to move to default move location
+    if (currentPlayerLocationID == 0) {
+        CreateMoveOptionAndPush(MoveEnum.MoveToHallway, currPlayerTurnDetail.defaultStartLocation, playerMoveOptions);
+    }
+    else {
+        var currLocDetail = locationDetailsDictionary[currentPlayerLocationID];
+        var currLocEdges = currLocDetail.edges;
+        var currLocIsRoom = currLocDetail.isRoom;
+
+        console.log("Current Location Edges:");
+        console.log(currLocEdges);
+
+        // loop through all bordering locations
+        for (var edgeIndex = 0; edgeIndex < currLocEdges.length; edgeIndex++) {
+            var edgeLocID = currLocEdges[edgeIndex];
+            var edgeDetail = locationDetailsDictionary[edgeLocID];
+            console.log(edgeDetail);
+
+            // if bordering location is a room
+            if (edgeDetail.isRoom == true) {
+                var roomMoveOptionEnum;
+                // Case 2: if current location is a room (and bordering location is a room), then this must be a secret passage way
+                if (currLocDetail.isRoom == true) {
+                    roomMoveOptionEnum = MoveEnum.TakeSecretPassageAndSuggest;
+                }
+                    // Case 3: if current location is a hallway, and bordering location is a room, then this is simply a move to room and suggest
+                else {
+                    roomMoveOptionEnum = MoveEnum.MoveToRoomAndSuggest;
+                }
+                CreateMoveOptionAndPush(roomMoveOptionEnum, edgeLocID, playerMoveOptions);
+            }
+                // if bordering location is a hallway
+            else {
+                // check if hallway is empty
+                var playersAtLocation = GetPlayerIDsAtCurrentLocation(edgeLocID);
+                console.log("players at location: " + playersAtLocation);
+                if (playersAtLocation.length == 0) {
+                    // Case 4: only allow move if hallway is empty
+                    CreateMoveOptionAndPush(MoveEnum.MoveToHallway, edgeLocID, playerMoveOptions);
+                }
+            }
+        }
+
+        // Case 5: If player was moved to current location via suggest, give them the option to stay in the room
+        if (currPlayerTurnDetail.wasSuggestedAndMovedLastTurn == true) {
+            CreateMoveOptionAndPush(MoveEnum.StayInRoomAndSuggest, currentPlayerLocationID, playerMoveOptions);
+            // turn this off now
+            currPlayerTurnDetail.wasSuggestedAndMovedLastTurn = false;
+        }
+    }
+
+    // always give the player the option to make an accusation
+    CreateMoveOptionAndPush(MoveEnum.MakeAnAccusation, 0, playerMoveOptions);
+
+    // at this point, if only one move option has been added (i.e. the accusation move) then the user is trapped and has no other moves to make.
+    // give them the option to end turn	
+    if (playerMoveOptions.length == 1) {
+        CreateMoveOptionAndPush(MoveEnum.EndTurn, 0, playerMoveOptions);
+    }
+
+    // notify all clients that player turn has changed
+    io.sockets.emit('PlayerTurnChanged', { playerID: currentTurnPlayerID });
+
+    // notify current player at turn of their move options
+    playerSockets[currentTurnPlayerID].emit('MoveOptions', { moveOptions: playerMoveOptions });
+
+    // wait for client response now to make a move
 }
 
 function CreateMoveOptionAndPush(mID, locID, options)
