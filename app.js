@@ -4,6 +4,7 @@
 var express = require('express')
 var app = express()
 var dao = require('./dagame.js');
+var enums = require('./enum.js');
 
 server = require('http').createServer(app),
 port = process.env.PORT || 3000,
@@ -56,6 +57,8 @@ io.on('connection', function(socket){
   });
 
 });
+
+var playerSockets = {}
 
 // constants
 var CONST_PLAYER_CARD_ENUM_OFFSET = 9;
@@ -236,7 +239,7 @@ function GeneratePlayerTurnMoves()
 
     // case 1: player has not moved yet; allow them to move to default move location
     if (currentPlayerLocationID == 0) {
-        CreateMoveOptionAndPush(MoveEnum.MoveToHallway, currPlayerTurnDetail.defaultStartLocation, playerMoveOptions);
+        CreateMoveOptionAndPush(enums.MoveEnum.MoveToHallway, currPlayerTurnDetail.defaultStartLocation, playerMoveOptions);
     }
     else {
         var currLocDetail = dao.getLocationDetail(currentPlayerLocationID);
@@ -257,11 +260,11 @@ function GeneratePlayerTurnMoves()
                 var roomMoveOptionEnum;
                 // Case 2: if current location is a room (and bordering location is a room), then this must be a secret passage way
                 if (currLocDetail.isRoom == true) {
-                    roomMoveOptionEnum = MoveEnum.TakeSecretPassageAndSuggest;
+                    roomMoveOptionEnum = enums.MoveEnum.TakeSecretPassageAndSuggest;
                 }
                     // Case 3: if current location is a hallway, and bordering location is a room, then this is simply a move to room and suggest
                 else {
-                    roomMoveOptionEnum = MoveEnum.MoveToRoomAndSuggest;
+                    roomMoveOptionEnum = enums.MoveEnum.MoveToRoomAndSuggest;
                 }
                 CreateMoveOptionAndPush(roomMoveOptionEnum, edgeLocID, playerMoveOptions);
             }
@@ -272,26 +275,26 @@ function GeneratePlayerTurnMoves()
                 console.log("players at location: " + playersAtLocation);
                 if (playersAtLocation.length == 0) {
                     // Case 4: only allow move if hallway is empty
-                    CreateMoveOptionAndPush(MoveEnum.MoveToHallway, edgeLocID, playerMoveOptions);
+                    CreateMoveOptionAndPush(enums.MoveEnum.MoveToHallway, edgeLocID, playerMoveOptions);
                 }
             }
         }
 
         // Case 5: If player was moved to current location via suggest, give them the option to stay in the room
         if (currPlayerTurnDetail.wasSuggestedAndMovedLastTurn == true) {
-            CreateMoveOptionAndPush(MoveEnum.StayInRoomAndSuggest, currentPlayerLocationID, playerMoveOptions);
+            CreateMoveOptionAndPush(enums.MoveEnum.StayInRoomAndSuggest, currentPlayerLocationID, playerMoveOptions);
             // turn this off now
             currPlayerTurnDetail.wasSuggestedAndMovedLastTurn = false;
         }
     }
 
     // always give the player the option to make an accusation
-    CreateMoveOptionAndPush(MoveEnum.MakeAnAccusation, 0, playerMoveOptions);
+    CreateMoveOptionAndPush(enums.MoveEnum.MakeAnAccusation, 0, playerMoveOptions);
 
     // at this point, if only one move option has been added (i.e. the accusation move) then the user is trapped and has no other moves to make.
     // give them the option to end turn	
     if (playerMoveOptions.length == 1) {
-        CreateMoveOptionAndPush(MoveEnum.EndTurn, 0, playerMoveOptions);
+        CreateMoveOptionAndPush(enums.MoveEnum.EndTurn, 0, playerMoveOptions);
     }
 
     // notify all clients that player turn has changed
@@ -349,21 +352,21 @@ function MakeMove(moveData)
 {
 	switch(moveData.MoveID)
 	{
-		case MoveEnum.MoveToHallway:
+		case enums.MoveEnum.MoveToHallway:
 			UpdatePlayerLocation(dao.currentTurnPlayerID, moveData.LocationID);
 			NextTurn();
 			break;
-		case MoveEnum.MoveToRoomAndSuggest:
-		case MoveEnum.StayInRoomAndSuggest:
-		case MoveEnum.TakeSecretPassageAndSuggest:
+		case enums.MoveEnum.MoveToRoomAndSuggest:
+		case enums.MoveEnum.StayInRoomAndSuggest:
+		case enums.MoveEnum.TakeSecretPassageAndSuggest:
 			MakeSuggestion(moveData.LocationID, moveData.PlayerID, moveData.WeaponID);
 			
 			break;
-		case MoveEnum.MakeAnAccusation:
+		case enums.MoveEnum.MakeAnAccusation:
 			MakeAccusation(moveData.LocationID, moveData.PlayerID, moveData.WeaponID);
 			break;
 			
-		case MoveEnum.EndTurn:
+		case enums.MoveEnum.EndTurn:
 			NextTurn();
 			break;
 	}
@@ -453,8 +456,8 @@ function SendCurrentPlayerAccuseAndEndTurnMove()
 {
 	var playerMoveOptions = [];
 	
-	CreateMoveOptionAndPush(MoveEnum.MakeAnAccusation, 0, playerMoveOptions);
-	CreateMoveOptionAndPush(MoveEnum.EndTurn, 0, playerMoveOptions);
+	CreateMoveOptionAndPush(enums.MoveEnum.MakeAnAccusation, 0, playerMoveOptions);
+	CreateMoveOptionAndPush(enums.MoveEnum.EndTurn, 0, playerMoveOptions);
 	
 	// notify current player at turn of their move options
 	playerSockets[dao.currentTurnPlayerID].emit('MoveOptions', { moveOptions : playerMoveOptions });
